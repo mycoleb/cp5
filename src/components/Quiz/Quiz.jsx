@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import './Quiz.css';
+import Quiz from '../Quiz/Quiz';
 
 const Quiz = ({ category }) => {
   const [questions, setQuestions] = useState([]);
@@ -10,20 +11,20 @@ const Quiz = ({ category }) => {
   const [error, setError] = useState(null);
   const [answers, setAnswers] = useState([]);
 
-  // Function to generate plausible incorrect answers
-  const generateIncorrectAnswers = (correctAnswer) => {
-    // This is a simplified version - you might want to implement more sophisticated logic
-    const dummyAnswers = [
-      "Alternative Answer 1",
-      "Alternative Answer 2",
-      "Alternative Answer 3",
-      "Alternative Answer 4",
-      "Alternative Answer 5"
-    ];
-    
-    return dummyAnswers
-      .filter(answer => answer !== correctAnswer)
-      .slice(0, 3);
+  // OpenTDB category mapping
+  const categoryMapping = {
+    'general': 9,        // General Knowledge
+    'books': 10,         // Entertainment: Books
+    'film': 11,          // Entertainment: Film
+    'music': 12,         // Entertainment: Music
+    'television': 14,    // Entertainment: Television
+    'science': 17,       // Science & Nature
+    'computers': 18,     // Science: Computers
+    'mathematics': 19,   // Science: Mathematics
+    'sports': 21,        // Sports
+    'geography': 22,     // Geography
+    'history': 23,       // History
+    'animals': 27        // Animals
   };
 
   useEffect(() => {
@@ -36,18 +37,14 @@ const Quiz = ({ category }) => {
       setLoading(true);
       setError(null);
       
-      const apiUrl = `https://api.api-ninjas.com/v1/trivia?limit=10${
-        category ? `&category=${category}` : ''
+      const categoryId = category ? categoryMapping[category.toLowerCase()] : '';
+      const apiUrl = `https://opentdb.com/api.php?amount=10&type=multiple${
+        categoryId ? `&category=${categoryId}` : ''
       }`;
       
       console.log('Fetching from:', apiUrl);
       
-      const response = await fetch(apiUrl, {
-        headers: {
-          'X-Api-Key': 'aa/IhN5Iav23Fmwa/9N0uw==Kg2Bri4gRdg15xHn',
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await fetch(apiUrl);
       
       console.log('Response status:', response.status);
       
@@ -57,10 +54,14 @@ const Quiz = ({ category }) => {
       
       const data = await response.json();
       
-      const formattedQuestions = data.map(q => ({
+      if (data.response_code !== 0) {
+        throw new Error('Failed to get valid questions from the API');
+      }
+
+      const formattedQuestions = data.results.map(q => ({
         question: q.question,
-        correct_answer: q.answer,
-        incorrect_answers: generateIncorrectAnswers(q.answer)
+        correct_answer: q.correct_answer,
+        incorrect_answers: q.incorrect_answers
       }));
 
       setQuestions(formattedQuestions);
@@ -79,7 +80,6 @@ const Quiz = ({ category }) => {
       setLoading(false);
     }
   };
-  //END OF FETCH QUIZ QUESTIONS
 
   const shuffleAnswers = (answersArray) => {
     return answersArray.sort(() => Math.random() - 0.5);
@@ -92,10 +92,8 @@ const Quiz = ({ category }) => {
       setScore(score + 1);
     }
 
-    // Move to next question
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      // Prepare answers for next question
       const nextAnswers = shuffleAnswers([
         ...questions[currentQuestionIndex + 1].incorrect_answers,
         questions[currentQuestionIndex + 1].correct_answer
